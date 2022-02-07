@@ -1,0 +1,83 @@
+proj_name: NSAID_gender_2019_16SrRNA_female
+raw_fq: /mnt/isilon/zackular_lab_hpc/data/NSAID_gender_2019_16SrRNA/raw_fq_female
+barcodes: /mnt/isilon/zackular_lab_hpc/data/NSAID_gender_2019_16SrRNA/females_sample_barcodes.tsv
+metadata: /mnt/isilon/zackular_lab_hpc/data/NSAID_gender_2019_16SrRNA/females_metadata.tsv
+metadata_Celecoxib: /mnt/isilon/zackular_lab_hpc/data/NSAID_gender_2019_16SrRNA/females_metadata_Celecoxib.tsv
+metadata_Naproxen: /mnt/isilon/zackular_lab_hpc/data/NSAID_gender_2019_16SrRNA/females_metadata_Naproxen.tsv  
+# Fastq file suffix, following the read pair designation
+suffix: .fastq.gz
+# suffix: _1.fastq.gz
+
+# Read pair designations
+# r1_suf: 1
+# r2_suf: 2
+# r1_suf: R1
+# r2_suf: R2
+
+# QIIME2-specific flags
+# Defaults for amplicon tag-sequencing - uncomment only parameters you need.
+
+# ## 18S default (Stoeck et al. 2010 V4 primers)
+# primerF: CCAGCASCYGCGGTAATTCC
+# primerR: ACTTTCGTTCTTGATYRA
+# primer_err: 0.4
+# primer_overlap: 3
+# # Merging reads for 18S:
+# minoverlap: 10
+# maxdiff: 4
+# minlength: 270
+
+# 16S default (Parada et al. modified EMP primers)
+# primerF: GTGYCAGCMGCCGCGGTAA
+# primerR: GGACTACNVGGGTWTCTAAT
+## need to aks for V1-V2 primers
+primerF: AGAGTTTGATCCTGGCTCAG
+primerR: TGCTGCCTCCCGTAGGAGT 
+primer_err: 0.1
+primer_overlap: 3
+# Merging reads for 16S
+minoverlap: 20
+maxdiff: 4
+minlength: 200
+
+## drug treatment
+drug:
+  - Celecoxib
+  - Naproxen
+
+## Database
+database: /vortexfs1/omics/huber/shu/db/pr2-db/V4-pr2_4.12.0.qza
+database_classified: /vortexfs1/omics/huber/shu/db/pr2-db/V4-pr2_4.12.0-classifier.qza
+database_tax: /vortexfs1/omics/huber/shu/db/pr2-db/pr2_4.12.0_tax.qza
+classifier: /mnt/isilon/zackular_lab_hpc/users/dic/projects/NSAID_gender_2019_16SrRNA/resources/gg-13-8-99-nb-classifier.qza
+
+## DADA2 - ASV flags
+# truncation_len-f + truncation_len-r should > amplicon(V1-V2 ~250bp) + overlap (~50bp)
+truncation_len-f: 250 # critical, need to determine from the QC report
+truncation_len-r: 184 # reverse reads usually have lower quanlity at the end, and thus should truncate more
+training: 1000000 #should be set higher for a non-test dataset
+chimera: consensus
+
+## diversity
+sampling_depth: 29853
+# Retained 2,179,269 (44.08%) features in 73 (96.05%) samples at the specifed sampling depth. remove BLANK and NEGCON_1
+
+## filter
+min-frequency_all: 50
+min-frequency_sample: 2000
+min-samples: 2
+
+## aldex2
+p-sig-threshold_Celecoxib: 0.1
+p-sig-threshold_Naproxen: 0.5
+
+# Quality filtering of merged reads
+minphred: 4
+qualwindow: 3 
+
+# De novo OTU clustering
+denovo_perc_id: 0.97
+denovo_otu-thread: 1
+
+# Chimera checking
+chimera-thread: 1

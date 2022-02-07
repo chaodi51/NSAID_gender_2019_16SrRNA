@@ -1,0 +1,98 @@
+# The main entry point of the workflow
+# snakemake --latency-wait 5 -j 10 -p -c "sbatch --job-name={params.jobName} --mem={params.mem} -c {threads} --time=360 -e sbatch/{params.jobName}.e -o sbatch/{params.jobName}.o"
+shell.prefix("source ~/.bash_profile; ")
+import os
+import io 
+import pandas as pd
+import pathlib
+from snakemake.exceptions import print_exception, WorkflowError
+
+##### load config #####
+# configfile: "../config/16S-rRNA-seq_female.yaml"
+configfile: "../config/16S-rRNA-seq_male.yaml"
+
+# set variables
+proj_name = config['proj_name']
+raw_fq = config['raw_fq']
+barcodes = config['barcodes']
+classifier = config['classifier']
+drugs = config['drug']
+
+##### target rules #####
+rule all:
+    input:
+        ## QIIME2 outputs
+        imported = "../results/qiime2/" + proj_name + "-PE-sequences.qza",
+        demuxed = "../results/qiime2/" + proj_name + "-PE-demux/per_sample_sequences.qza",
+        primerRM = "../results/qiime2/" + proj_name + "-PE-demux-noprimer.qza",
+        primerRM_viz = "../results/qiime2/" + proj_name + "-PE-demux-noprimer.qzv",
+        
+        ## ASV outputs by Dada2:
+        table = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table.qza",
+        rep = "../results/qiime2/asv/dada2/" + proj_name + "-rep-seqs.qza",
+        stats = "../results/qiime2/asv/dada2/" + proj_name + "-stats-dada2.qza",
+        stats_viz = "../results/qiime2/asv/dada2/" + proj_name + "-stats-dada2.qzv",
+        table_viz = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table.qzv",
+        rep_seqs_viz = "../results/qiime2/asv/dada2/" + proj_name + "-rep-seqs.qzv",
+
+        ## feature table filter:
+        table_2k = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table_2k.qza",
+        table_2k_abund = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table_2k_abund.qza",
+        table_2k_abund_comp = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table_2k_abund_comp.qza",
+        table_2k_abund_viz = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table_2k_abund.qzv",
+        table_Celecoxib = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table_Celecoxib.qza",
+        table_Naproxen = "../results/qiime2/asv/dada2/" + proj_name + "-asv-table_Naproxen.qza",
+
+        ## Taxonomy
+        taxonomy = "../results/qiime2/asv/taxonomy/" + proj_name + "-taxonomy.qza",
+        taxonomy_viz = "../results/qiime2/asv/taxonomy/" + proj_name + "-taxonomy.qzv",
+        
+        ## phylogeny outputs
+        alignment = "../results/qiime2/asv/phylogeny/" + proj_name + "-aligned-rep-seqs.qza",
+        masked_alignment = "../results/qiime2/asv/phylogeny/" + proj_name + "-masked_aligned-rep-seqs.qza",
+        unrooted_tree = "../results/qiime2/asv/phylogeny/" + proj_name + "-unrooted_tree.qza",
+        rooted_tree = "../results/qiime2/asv/phylogeny/" + proj_name + "-rooted_tree.qza",
+        
+        ## diversity outputs:
+        faith_pd_vector = "../results/qiime2/asv/diversity/core-metrics-results/" + proj_name + "-faith-pd-vector.qza",
+        faith_pd_group_significance = "../results/qiime2/asv/diversity/core-metrics-results/" + proj_name + "-faith-pd-group-significance.qzv",
+        evenness_group_significance = "../results/qiime2/asv/diversity/core-metrics-results/" + proj_name + "-evenness-group-significance.qzv",
+        unweighted_unifrac_studygroup_significance = "../results/qiime2/asv/diversity/core-metrics-results/" + proj_name + "-unweighted-unifrac-studygroup-significance.qzv",
+        unweighted_unifrac_studyday_significance = "../results/qiime2/asv/diversity/core-metrics-results/" + proj_name + "-unweighted-unifrac-studyday-significance.qzv",
+
+        ## differential ASV abundance with ANCOM
+        ancom_study_group = "../results/qiime2/asv/dada2/" + proj_name + "_ancom_study_group.qzv",
+        ancom_study_day = "../results/qiime2/asv/dada2/" + proj_name + "_ancom_study_day.qzv",
+
+        ## collapse ASVs to Taxa, feature table
+        uniform_table = "../results/qiime2/asv/taxonomy/" + proj_name + "-uniform_table.qza",
+        filtered_uniform_table = "../results/qiime2/asv/taxonomy/" + proj_name + "-filtered_uniform_table.qza",
+
+        ## differential taxa abundance with ANCOM
+        # cfu_table = "../results/qiime2/asv/taxonomy/" + proj_name + "-cfu_table.qza",
+        # ancom_uniform_study_group = "../results/qiime2/asv/taxonomy/" + proj_name + "_ancom_uniform_study_group.qzv",
+        # ancom_uniform_study_day = "../results/qiime2/asv/taxonomy/" + proj_name + "_ancom_uniform_study_day.qzv",
+
+        ## differential taxa abundance with aldex2
+        differentials_Celecoxib = "../results/qiime2/asv/aldex2/Celecoxib_test/" + proj_name + "-differentials.qza",
+        differentials_Naproxen =  "../results/qiime2/asv/aldex2/Naproxen_test/" + proj_name + "-differentials.qza",
+        differentials_Celecoxib_viz = "../results/qiime2/asv/aldex2/Celecoxib_test/" + proj_name + "-differentials.qzv",
+        differentials_Naproxen_viz =  "../results/qiime2/asv/aldex2/Naproxen_test/" + proj_name + "-differentials.qzv",
+        differentials_Celecoxib_sig = "../results/qiime2/asv/aldex2/Celecoxib_test/" + proj_name + "-differentials-sig.qza",
+        differentials_Naproxen_sig =  "../results/qiime2/asv/aldex2/Naproxen_test/" + proj_name + "-differentials-sig.qza"   
+
+##### setup report #####
+report: "report/workflow.rst"
+
+##### load rules ####
+include: "rules/qiime2_import.smk"
+include: "rules/qiime2_demux.smk"
+include: "rules/rm_primers.smk"
+include: "rules/dada2_denoise.smk"
+include: "rules/feature_filter.smk"
+include: "rules/taxonomy.smk"
+include: "rules/phylogeny.smk"
+include: "rules/diversity.smk"
+# include: "rules/ANCOM.smk"
+# include: "rules/ANCOM_taxa.smk"
+include: "rules/aldex2.smk"
